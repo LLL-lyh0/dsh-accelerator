@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "title": "加速器",
+    "description": "本机加速器：回环 MITM 代理 + hosts 引导 + 节点池优选，专治 SNI 阻断。节点池是可被外部 AI 读写扩展的 JSON。"
+  },
+  "nav": "加速器",
+  "status": {
+    "running": "运行中",
+    "stopped": "已停止",
+    "title": "运行状态",
+    "listen": "监听",
+    "ca": "根证书",
+    "hosts": "hosts 引导",
+    "domains": "受管域名",
+    "conflict": "冲突"
+  },
+  "action": {
+    "start": "启动加速",
+    "stop": "停止加速",
+    "refresh": "刷新",
+    "reload": "重载节点文件",
+    "probe": "测活（只测不改）",
+    "curate": "策展（测活 + 补 IP + 写回）",
+    "save": "保存",
+    "add": "添加",
+    "remove": "删除",
+    "reinstallCa": "重装根证书",
+    "working": "执行中…",
+    "done": "完成"
+  },
+  "nodes": {
+    "title": "节点池",
+    "hint": "每行一个节点。SNI 策略：real=用真域名（Cloudflare/GitHub 直连段需要），none=不发 SNI（Akamai/CloudFront 绕阻断靠这个），cdn=填指定 CDN 名。",
+    "domain": "域名",
+    "ip": "IP",
+    "sni": "SNI",
+    "empty": "暂无节点"
+  },
+  "config": {
+    "title": "策略",
+    "enforce": "强制走加速的进程",
+    "enforceHint": "留空表示不强制。填进程名（如 steam.exe），用逗号分隔。",
+    "bypass": "不走加速的进程",
+    "upstream": "外部上游",
+    "upstreamMode": "类型",
+    "upstreamHost": "地址",
+    "upstreamPort": "端口",
+    "listen": "监听地址",
+    "installCa": "启用时安装根证书"
+  },
+  "log": {
+    "title": "日志"
+  }
+}

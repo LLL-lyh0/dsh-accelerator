@@ -1,0 +1,55 @@
+{
+  "name": "dsh-accelerator",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "本机加速器：回环 MITM 代理 + hosts 引导 + 节点池优选，专治 SNI 阻断。设置页内置管理界面，节点池是可被外部 AI 读写扩展的 JSON。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "cordis",
+    "accelerator",
+    "proxy",
+    "mitm",
+    "sni"
+  ],
+  "license": "MIT",
+  "author": "LLL-lyh0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LLL-lyh0/dsh-accelerator.git"
+  },
+  "homepage": "https://github.com/LLL-lyh0/dsh-accelerator#readme",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "lib",
+    "skill",
+    "test",
+    "locale/*.json",
+    "icon.svg",
+    "docs/store/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
+    }
+  }
+}

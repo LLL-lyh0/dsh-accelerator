@@ -1,0 +1,11 @@
+# 本机加速器（dsh-accelerator）
+#
+# Host 侧：回环 MITM 引擎（自签 CA + 多 SAN 叶证书 + 节点池并发竞速 + DoH 兜底）、
+#   hosts 段引导与回滚、按进程粒度裁定（enforce/bypass）、30s 看门狗，
+#   并把节点池暴露成可被外部 AI 读写的 JSON（~/.dsh/storages/dsh-accelerator/nodes.json）。
+#   注册 /api/dsh-accelerator/* HTTP 面与 accelerator agent 工具。
+# Client 侧：在「设置」左侧导航注册「加速器」管理页（settings.section）。
+- insert:
+    - id: dsh-accelerator
+      name: 'dsh-accelerator'
+      config: {}
