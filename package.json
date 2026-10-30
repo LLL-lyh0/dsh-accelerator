@@ -1,8 +1,8 @@
 {
   "name": "dsh-accelerator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "本机加速器：回环 MITM 代理 + hosts 引导 + 节点池优选，专治 SNI 阻断。设置页内置管理界面，节点池是可被外部 AI 读写扩展的 JSON。",
+  "description": "本机加速器：回环 MITM 代理 + hosts 引导 + 节点池优选，专治 SNI 阻断；被 SNI 整段阻断、换任何 IP 都无解的域名（如 itch.io）可按域名交给外部 HTTP/SOCKS5 上游转发。设置页内置管理界面，节点池是可被外部 AI 读写扩展的 JSON。",
   "keywords": [
     "dsh",
     "dsh-plugin",

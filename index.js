@@ -28,6 +28,7 @@ import { SmartController } from './lib/smart.mjs';
 import { curateDomain, pickAlive } from './lib/curator.mjs';
 import { isBadResult } from './lib/verify.mjs';
 import { readHosts, parseOwnBlock, missingManaged, detectConflicts } from './lib/hosts.mjs';
+import { currentTakeover } from './lib/system-proxy.mjs';
 
 // 刻意不在模块级硬依赖 webServer/tools：纯 CLI 宿主里这两个服务不存在，
 // 硬 inject 会让 cordis 永远等不齐、插件静默不加载（dsh-zen-free 在 0.2.1 踩过这个坑）。
@@ -477,10 +478,15 @@ export function apply(ctx) {
   // disposer 同步返回，内部尽力做异步回滚。
   ctx.effect(() => {
     const boot = acc.init().then(async () => {
-      // 自愈：上次进程被强杀（没走 dispose）→ hosts 还指着我们但引擎没跑 → 立刻回滚
+      // 自愈：上次进程被强杀（没走 dispose）→ hosts 还指着我们但引擎没跑 → 立刻回滚。
+      // 同理，残留 PAC（重启后接管状态是空的）也要清：留着 PAC 却关掉引擎，
+      // 认系统代理的程序会被指到没人听的 8843 → 受管域名全打不开。
       acc.hostsState = parseOwnBlock(await readHosts());
-      if (acc.hostsState.active && !acc.config.enabled) {
-        log('warn', '发现 hosts 残留段且插件未启用 → 自动回滚');
+      const residual = acc.hostsState.active || (await currentTakeover(
+        acc.config.proxyHost ?? '127.0.0.2', Number(acc.config.proxyPort) || 8843,
+      )).pacActive;
+      if (residual && !acc.config.enabled) {
+        log('warn', '发现 hosts/系统代理残留且插件未启用 → 自动回滚');
         await acc.stop();
         return;
       }

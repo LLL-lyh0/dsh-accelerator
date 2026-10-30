@@ -223,6 +223,24 @@ window.__ModuleLoader__.load({
 			}
 
 			function saveConfig() {
+				// 按域名上游覆盖：编辑态是原始 JSON 字符串（config.upstreamsText），
+				// 保存时才解析；解析失败时保留旧值并提示，绝不让一次坏 JSON 丢掉整个配置。
+				var upstreams = (config && config.upstreams) || {};
+				if (config && config.upstreamsText !== undefined && config.upstreamsText !== null
+					&& String(config.upstreamsText).trim() !== "") {
+					try { upstreams = JSON.parse(config.upstreamsText); }
+					catch (e) {
+						setNotice("按域名上游的 JSON 解析失败，本次未更新上游覆盖：" + e.message);
+						upstreams = (config && config.upstreams) || {};
+					}
+				}
+				var up = {
+					mode: (config && config.upstreamMode) || (config && config.upstream && config.upstream.mode) || "direct",
+					host: String((config && config.upstreamHost) || (config && config.upstream && config.upstream.host) || "").trim(),
+					port: Number((config && config.upstreamPort) || (config && config.upstream && config.upstream.port) || 0) || 0,
+					username: (config && config.upstream && config.upstream.username) || "",
+					password: (config && config.upstream && config.upstream.password) || ""
+				};
 				var patch = {
 					enforce: (config.enforce || []),
 					bypass: (config.bypass || []),
@@ -234,7 +252,8 @@ window.__ModuleLoader__.load({
 					takeover: config.takeover || "auto",
 					proxyHost: config.proxyHost,
 					proxyPort: Number(config.proxyPort) || 8843,
-					upstream: Object.assign({}, config.upstream, { port: Number(config.upstream && config.upstream.port) || 0 })
+					upstream: up,
+					upstreams: upstreams
 				};
 				return run("保存策略", function () { return post("/config", { config: patch }); });
 			}
@@ -317,6 +336,8 @@ window.__ModuleLoader__.load({
 					]),
 					error ? h("div", { key: "err", style: { marginTop: 10, fontSize: 12, color: "#ef4444" } }, "✗ " + error) : null,
 					notice && !error ? h("div", { key: "ok", style: { marginTop: 10, fontSize: 12, color: C.tertiary } }, notice) : null,
+					h("div", { key: "hint", style: { marginTop: 8, fontSize: 11, color: C.tertiary } },
+						"「停止加速」只是本次；DSH 重启后会随开机自启恢复。要永久关，把下面的「随 DSH 启动」取消勾选再保存。"),
 					h("div", { key: "gr", style: { marginTop: 12 } }, [
 						kv("监听", status.listen),
 						kv("根证书", status.ca && status.ca.installed ? "已安装 · " + status.ca.subject : "未安装（启动时会自动装）"),
@@ -537,6 +558,45 @@ window.__ModuleLoader__.load({
 								}),
 								"启动时自动安装根证书"
 							])
+						])
+					]),
+					h(Row, { key: "up", cols: "200px 1fr" }, [
+						h("div", { key: "l", style: { fontSize: 12, color: C.tertiary } }, "全局上游（兜底）"),
+						h("div", { key: "i", style: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" } }, [
+							h("select", {
+								key: "m", style: Object.assign({}, input, { width: 110 }),
+								value: (config && config.upstreamMode) || (config && config.upstream && config.upstream.mode) || "direct",
+								onChange: function (ev) { setConfig(Object.assign({}, config, { upstreamMode: ev.target.value })); }
+							}, [
+								h("option", { key: "direct", value: "direct" }, "不使用"),
+								h("option", { key: "socks5", value: "socks5" }, "SOCKS5"),
+								h("option", { key: "http", value: "http" }, "HTTP")
+							]),
+							h("input", {
+								key: "uh", style: Object.assign({}, input, { width: 130 }), placeholder: "上游地址（仅兜底时用）",
+								value: (config && config.upstreamHost) || (config && config.upstream && config.upstream.host) || "",
+								onChange: function (ev) { setConfig(Object.assign({}, config, { upstreamHost: ev.target.value.trim() })); }
+							}),
+							h("input", {
+								key: "up", style: Object.assign({}, input, { width: 80 }), placeholder: "上游端口",
+								value: (config && config.upstreamPort) || (config && config.upstream && config.upstream.port) || "",
+								onChange: function (ev) { setConfig(Object.assign({}, config, { upstreamPort: ev.target.value.trim() })); }
+							}),
+							h("span", { key: "h", style: { fontSize: 11, color: C.tertiary } },
+								"仅当某域名直连全挂时才经它再试一次（全局兜底，不是级联）")
+						])
+					]),
+					h(Row, { key: "ups", cols: "200px 1fr" }, [
+						h("div", { key: "l", style: { fontSize: 12, color: C.tertiary } }, "按域名上游覆盖"),
+						h("div", { key: "i", style: { display: "flex", flexDirection: "column", gap: 6 } }, [
+							h("textarea", {
+								key: "t", style: Object.assign({}, input, { width: "100%", minHeight: 64, fontFamily: "monospace", fontSize: 11, resize: "vertical" }),
+								placeholder: '{"itch.io": {"mode": "socks5", "host": "127.0.0.1", "port": 10808}}',
+								value: (config && config.upstreamsText) || (config && config.upstreams && Object.keys(config.upstreams).length ? JSON.stringify(config.upstreams, null, 2) : ""),
+								onChange: function (ev) { setConfig(Object.assign({}, config, { upstreamsText: ev.target.value })); }
+							}),
+							h("span", { key: "h", style: { fontSize: 11, color: C.tertiary } },
+								"被 SNI 整段阻断的域名（如 itch.io）换任何 IP 都无解，只能整域走外部上游：填 {\"域名\":{\"mode\":\"socks5\"|\"http\",\"host\",\"port\"}}，该域名完全经上游转发")
 						])
 					]),
 					h("div", { key: "a", style: { display: "flex", gap: 8, marginTop: 10 } }, [

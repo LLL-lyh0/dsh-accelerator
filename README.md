@@ -147,6 +147,32 @@ Windows 解析 hosts **取第一个命中**，重叠的映射**不可能都生�
 - 想让 hosts 模式回来，两条路任选：**① 以管理员身份运行 DSH；② 管理员执行一次**
   `icacls "C:\Windows\System32\drivers\etc\hosts" /grant Users:F`（别家加速器可能再改回去）。
 
+## 指定域名走外部上游（itch.io 这类域名的唯一真解）
+
+有些域名不是「IP 选得不好」，而是被 **SNI 整段阻断**：同一台边缘服务器，SNI 填别的域名能通、
+填目标域名一律 RST（本机实测：`151.101.1.44` 上 SNI=`www.fastly.com`/`example.com` 都 301，
+SNI=`itch.io` 一律 `ECONNRESET`）。这类域名换任何 IP、换任何 SNI 策略都无解——
+RST 跟着 SNI 走，不跟着 IP 走。
+
+唯一真解是把该域名的流量**整域交给一个外部 HTTP/SOCKS5 上游**转发：
+
+```json
+// ~/.dsh/storages/dsh-accelerator/config.json
+{
+  "upstreams": {
+    "itch.io": { "mode": "socks5", "host": "127.0.0.1", "port": 10808 },
+    "*.itch.zone": { "mode": "http", "host": "127.0.0.1", "port": 10809 }
+  }
+}
+```
+
+- 命中的域名**完全经上游**（CONNECT 交出去，不竞速 IP）；上游是全局共享配置，
+  也可以只对 itch.io 一个域名配。
+- 同时要把该域名引导到本机：hosts 模式下加进 hosts（我们的段会自动抢首个命中）；
+  PAC 模式下 PAC 脚本按受管域名生成，把域名加进 `nodes.json`（哪怕先不填候选）
+  就会让它出现在 PAC 里。
+- 没配上游时，这类域名只能失败（引擎不会凭空造通路）——如实报告，别反复 repair。
+
 ## 证书链：为什么命令行客户端一握手就被拒
 
 `curl.exe`（Windows Schannel，走用户 Root 库）与 `git`（Git for Windows 默认 schannel 后端）最初对所有受管域名都是：
@@ -197,7 +223,9 @@ opencode.ai 200、openrouter.ai 200、api.steampowered.com 404），`git ls-remo
 | `proxyHost` / `proxyPort` | `127.0.0.2` / `8843` | PAC / 固定代理模式的本地代理监听 |
 | `listenHost` / `listenPort` | `127.0.0.2` / `443` | `127.0.0.1:443` 常被 Steamcommunity_302 占用 |
 | `installCaOnEnable` | `true` | 启用时自动把 CA 装进 `CurrentUser\Root` |
-| `upstream` | `{mode:'direct'}` | 可插拔外部上游（`direct` / `http` / `socks5`） |
+| `upstream` | `{mode:'direct'}` | 可插拔外部上游（`direct` / `http` / `socks5`）。**语义是「兜底」而不是「级联一切」**：仅当某域名直连池全挂时经它再试一次 |
+| `upstreamFallback` | `true` | 直连池全挂时是否回退到全局上游（`false` = 直连失败就失败，不碰上游） |
+| `upstreams` | `{}` | **按域名上游覆盖**（级联）：`{"itch.io":{"mode":"socks5","host":"127.0.0.1","port":10808}}` —— 该域名完全经上游转发，不选 IP。用于被 SNI 整段阻断、换任何 IP 都无解的域名 |
 | `enforce` / `bypass` | `[]` | 强制接管 / 永不接管的进程名 |
 | `domainGroups` | `{}` | 每个域名的接管开关（`false` 关闭） |
 | `relaxRevocationCheck` | `false` | 兜底开关：把 `CertificateRevocation` 置 0（只对老式 WinINET 客户端有效；`curl.exe`/`git` 不读它） |
@@ -212,6 +240,7 @@ node test/client-smoke.mjs      # 设置页（真实 client.js 跑在 React/DOM 
 node test/hosts-smoke.mjs       # hosts 纯函数（回滚不变量 + 302/Watt 归因，28 项断言）
 node test/status-shape.mjs      # status() 契约（含通配不进 hosts，19 项断言）
 node test/smart-smoke.mjs       # 智能修复的池子下限保护（存活不足时不缩池，13 项断言）
+node test/upstream-smoke.mjs    # 每域名上游覆盖 + 池子全挂回退（本地 SOCKS5 上游，6 项断言）
 node test/live-verify.mjs       # 对【正在运行】的引擎逐域名真发 HTTPS（不启引擎、不动 hosts）
 node test/live-takeover.mjs     # PAC 接管验收：真写系统代理→验全链路→**必定还原**
 node test/live-crl.mjs          # CRL/Schannel 验收（curl.exe 真跑；复验请换端口并 SKIP_A=1）

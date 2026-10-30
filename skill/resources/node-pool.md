@@ -42,6 +42,28 @@
 
 ⇒ **同一个 `sni` 策略不能套所有域名**。换节点时不要顺手把 `none` 改成 `real`。
 
+## SNI 整段阻断的域名：换 IP 无解，只能走每域名上游
+
+有的域名不是「节点选得不好」，而是 **RST 跟着 SNI 走、不跟着 IP 走**（2026-10-28 实测
+`itch.io`）：同一台 Fastly 边缘 `151.101.1.44`，SNI=`www.fastly.com`/`example.com` 都
+HTTP 301（对端 CN=`*.taboola.com`），SNI=`itch.io` 一律 `ECONNRESET`。穷举多源 DoH 的
+全部 IP（Cloudflare `104.26.x`、`172.67.x`、Fastly anycast、`192.133.77.133`）+ 真/无 SNI
+全败，明文 80 也 timeout。
+
+⇒ 这类域名换任何 IP、换任何 SNI 策略都修不好。**唯一真解是把整域流量交给外部
+HTTP/SOCKS5 上游**：
+
+```json
+// ~/.dsh/storages/dsh-accelerator/config.json
+{ "upstreams": { "itch.io": { "mode": "socks5", "host": "127.0.0.1", "port": 10808 } } }
+```
+
+- 优先级：`upstreams[域名]`（级联，完全经上游、不竞速）> 全局 `upstream`（**兜底**：
+  仅当直连池全挂时经它再试一次，`upstreamFallback:false` 可关）。
+- 判别方法：先拿 DoH 出来的 IP 直发带真 SNI 的 HTTPS（全败）→ 再在同一 IP 上换填
+  一个无关域名（能通）→ 即是 SNI 阻断，**不要再折腾节点，直接配 `upstreams` 并如实
+  告诉用户「这台机器上没有上游就打不开」**。
+
 ## 可用种子（实测通过，会被预置）
 
 | 域名 | IP | sni |
